@@ -2,7 +2,7 @@
 title: "Métodos Cuantitativos en Ecología - MCE5"
 subtitle: "EXAMEN FINAL - 2023I"
 author: 'Vela Aulestia'
-date: "`r Sys.Date()`"
+date: "11 de Julio de 2023"
 output:
   html_document:
     toc: yes
@@ -29,7 +29,6 @@ Los contenidos de esta evaluación corresponden a los temas:
 
 -   Análisis espacial
 
-
 Ustedes estan utilizando un archivo tipo R Markdown (`.Rmd`). Las instruciones son **[1 PUNTO]**:
 
 -   Bifurquen el repositorio en GitHub y clonen en su computador usando un proyecto con control de la versión de RStudio.
@@ -38,93 +37,152 @@ Ustedes estan utilizando un archivo tipo R Markdown (`.Rmd`). Las instruciones s
 
 -   **Todo resultado debe ir con su explicación y/o discusión, caso contrario no se calificará.**
 
--   **NO IMPRIMA los datos o tablas completas**, reporte únicamente figuras o tablas resumen. Si tiene varias figuras use la función `ggarrange` de la librería `ggpubr`.  
+-   **NO IMPRIMA los datos o tablas completas**, reporte únicamente figuras o tablas resumen. Si tiene varias figuras use la función `ggarrange` de la librería `ggpubr`.
 
 -   Al final de este examen deben utilizar el comando "Knit" para generar un archivo HTML.
 
--   **Cada pregunta debe tener al menos un cntrol de la versión**.
+## PREGUNTA 1: GLM, GAM y Regresión Bayesiana [3 PUNTOS]
 
--   Su entrega consiste en colocar el **enlace de GitHub** en la actividad "ExamenFinal".
+```{r}
+library(ggpubr)
+ggarrange
+```
 
-## **PREGUNTA 1: GLM, GAM y Regresión Bayesiana [3 PUNTOS]**
+En el archivo `"glm.xlsx"` tiene tres datos:
 
-En el archivo `"glm.xlsx"` tiene tres datos: 
+-   aedes: insecticidas utilizados para controlar el número de mosquitos en un experimento. Cada vez que se repite la aplicación del insecticida parece disminuir la cantidad de zancudos vivos.
 
-- aedes: insecticidas utilizados para controlar el número de mosquitos en un experimento. Cada vez que se repite la aplicación del insecticida parece disminuir la cantidad de zancudos vivos.
+-   leishmania: en una infección con leishmania cuando se analiza el tejido qué sucede con la concentración de algunas células y si están o no afectadas.
 
-- leishmania: en una infección con leishmania cuando se analiza el tejido qué sucede con la concentración de algunas células y si están o no afectadas. 
+-   disease: cómo la edad afecta a diferentes características dicotómicas.
 
-- disease: cómo la edad afecta a diferentes características dicotómicas. 
+### Realice los siguientes análisis:
 
-Realice los siguientes análisis: 
+### aedes: GLM Poisson
 
-- aedes: GLM Poisson
+```{r}
+library(readxl)
+aedes <- read_excel("aedes.xlsx")
+View(aedes)
+```
 
-- disease: GLMs binomiales
+### 
+Análisis exploratorio
 
-- leishmania: glm bayesiano
+```{r}
+library(MASS); library(ggplot2)
+head(aedes, 2)
+summary(aedes)
+plot(aedes$aedes, aedes$repetition)+
+  abline( x= aedes$aedes, y=aedes$repetition)
+```
 
-Realizar los siguientes análisis y respectivas interpretaciones: 
+Se puede observar que los datos están dispersos, y que aprentemente no siguenun comprtamiento de regresión lineal. La media para aedes es de 523.5 y para las repeticiones es de 3.5
 
-1. Análisis exploratorio.
+#### Planteamiento de hipótesis.
 
-2. Planteamiento de hipótesis.
+Por lo que se plantea la siguiente hipotesis:
 
-3. Análisis de regresión 
+$H_0$: La repeticiones de aplicación de agroquímicos no tiene un efecto sobre la población de mosquitos
 
-4. Planteamiento del modelo. 
+$H_1$: La repeticiones de aplicación de agroquímicos disminuye la población de mosquitos
 
-5. Validez del modelo.
+#### Análisis de regresión
 
+```{r}
+h01 <- lm(repetition ~ aedes, data = aedes)
+summary(h01)
+plot(h01)
+```
 
+Se puede observar que los valores residuales de la población de moquitos y de las repeticiones siguen un omportamiento creciente. Simbargo las observaciones 10, 30, 210, 260 son datos atípicos comprobados por la distancia de cook.
 
+#### Planteamiento del modelo.
 
+```{r}
+boxplot(aedes$repetition ~ aedes$aedes, ylab = "Repetición de Agroquímicos", xlab = "Población de Mosquitos")
+
+```
+
+```{r}
+plot(aedes$repetition, aedes$aedes, ylab = "Repeticion de Agroquimicos", xlab = "Población de Mosquitos")
+reg <- lm(aedes$repetition ~ aedes$aedes)
+
+```
+
+#### disease: GLMs binomiales
+
+#### 
+
+leishmania: glm bayesiano
+
+Realizar los siguientes análisis y respectivas interpretaciones:
 
 ## **PREGUNTA 2: Series de tiempo [3 PUNTOS]**
 
-En el archivo `"ts.xlsx"` tiene tres datos: 
+En el archivo `"ts.xlsx"` tiene tres datos:
 
-- quakes: cantidad de eventos de terremotos por cada año.
+-   quakes: cantidad de eventos de terremotos por cada año.
 
-- hepatitis: casos de hepatitis por mes entre 2010 y 2017 (acomodar la tabla si es necesario) 
+-   hepatitis: casos de hepatitis por mes entre 2010 y 2017 (acomodar la tabla si es necesario)
 
-- wildfire: cantidad de eventos de incendios forestales por mes entre 2003 y 2017.
+-   wildfire: cantidad de eventos de incendios forestales por mes entre 2003 y 2017.
 
+Realizar los siguientes análisis y respectivas interpretaciones:
 
+1.  Análisis exploratorio: autocorrelación y descomposición, análisis estacional.
 
-Realizar los siguientes análisis y respectivas interpretaciones: 
+2.  ARIMA, SARIMA, ETS, NNAR
 
-1. Análisis exploratorio: autocorrelación y descomposición, análisis estacional.
+3.  Validez de los modelos.
 
-2. ARIMA, SARIMA, ETS, NNAR
-
-3. Validez de los modelos.
-
-4. Predicción a 20 años o a 24 meses según corresponda. 
-
-
+4.  Predicción a 20 años o a 24 meses según corresponda.
 
 ## **PREGUNTA 3: Análisis espacial de especies [3 PUNTOS]**
 
-Seleccione una especie de planta y una especie de animal; asimismo, dos tipos de modelos de predicción (glm, gam, rf, ann, otro): 
+Seleccione una especie de planta y una especie de animal; asimismo, dos tipos de modelos de predicción (glm, gam, rf, ann, otro):
 
-- Mosquito: *Aedes aegypti*
+-   Mosquito: *Aedes aegypti*
 
-- Puma: *Puma concolor*
+-   Puma: *Puma concolor*
 
-- Coati: *Nasua nasua*
+-   Coati: *Nasua nasua*
 
-- Tapir: *Tapirus terrestris*
+-   Tapir: *Tapirus terrestris*
 
-- Jaguar: *Panthera onca*
+-   Jaguar: *Panthera onca*
 
-- Palma de cera: *Ceroxylon quindiuense*
+-   Palma de cera: *Ceroxylon quindiuense*
 
-- Ceibo: *Ceiba pentandra* 
+-   Ceibo: *Ceiba pentandra*
 
-- Pasiflora: *Passiflora edulis*
+-   Pasiflora: *Passiflora edulis*
 
-- Chirimoya: *Anona cherimola*
+-   Chirimoya: *Anona cherimola*
 
-Luego realice un análisis espacial de distribución de la especie en Ecuador continental en base a los datos de presencia del GBIF (use rgbif para descargar la data). Explique el resultado y compare la diferencia entre la salida de los dos modelos. En qué regiones los modelos difieren más en la predicción?   
+#### Tapir
 
+#### Carga de datos  y Selección del Aerea de Estudio 
+
+```{r}
+
+require(pacman)
+pacman::p_load(rnaturalearthdata, extrafont, showtext, rnaturalearth, cptcity, 
+               SSDM, ggspatial, raster, terra, rgbif, tidyverse, sf, sp, 
+               geodata, glue, ggpubr)
+
+g = gc(reset=T)
+rm(list=ls())
+options(scipen = 999, warn = -1)
+```
+
+```{r}
+sps = "Tapirus terrestris"
+occr = occ_data(scientificName = sps, limit = 10e5, hasCoordinate = T, 
+                hasGeospatialIssue = F)
+occr = occr[[2]]
+unique(occr$country) %>%  sort()
+occr = occr %>%  dplyr::filter(country == "Ecuador")
+```
+
+### Contstrucción del Modelo

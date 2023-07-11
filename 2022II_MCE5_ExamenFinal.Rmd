@@ -1,7 +1,7 @@
 ---
 title: "Métodos Cuantitativos en Ecología - MCE5"
-subtitle: "EXAMEN FINAL - 2022II"
-author: 'Apellido Nombre'
+subtitle: "EXAMEN FINAL - 2023I"
+author: 'Vela Aulestia'
 date: "`r Sys.Date()`"
 output:
   html_document:

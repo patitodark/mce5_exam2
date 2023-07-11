@@ -227,7 +227,6 @@ back = as_tibble(back)
 #### UNION DATOS CLIMATICOS Y DISTRIBUCIÓN
 
 ```{r}
-# Join data 
 tble = rbind(occr, back)
 
 # Random Forest Model
@@ -249,8 +248,6 @@ rstr = terra::rast(rstr)
 rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
 
 # Built the map
-windowsFont(georg = windowsFont("Georgia"))
-
 gmap = ggplot() +
   geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
   scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
@@ -277,3 +274,5 @@ gmap = ggplot() +
     pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
     style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
 ```
+Mayor indiviudos número  de individuos en la zona amazónica espcielamente en la provincia de Napo y Pastaza. Su idoneidad de habitat es de 0.8 respecto a las dos provincias. 
+

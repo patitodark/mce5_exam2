@@ -1,0 +1,664 @@
+---
+title: "Métodos Cuantitativos en Ecología - MCE5"
+subtitle: "EXAMEN FINAL - 2023I"
+author: 'Vela Aulestia'
+date: "11 de Julio de 2023"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    highlight: espresso
+    theme: paper
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r echo = FALSE, results = 'asis'}
+image = "https://www.ikiam.edu.ec/wp-content/uploads/2021/12/logo-ikiam-1.png"
+cat(paste0('<center><img src="', image,  '"></center>')) 
+```
+
+Los contenidos de esta evaluación corresponden a los temas:
+
+-   GLM y GAM
+
+-   Introducción a estadística Bayesiana
+
+-   Series de tiempo
+
+-   Análisis espacial
+
+Ustedes estan utilizando un archivo tipo R Markdown (`.Rmd`). Las instruciones son **[1 PUNTO]**:
+
+-   Bifurquen el repositorio en GitHub y clonen en su computador usando un proyecto con control de la versión de RStudio.
+
+-   Arriba, donde dice "author", deben llenar sus nombres.
+
+-   **Todo resultado debe ir con su explicación y/o discusión, caso contrario no se calificará.**
+
+-   **NO IMPRIMA los datos o tablas completas**, reporte únicamente figuras o tablas resumen. Si tiene varias figuras use la función `ggarrange` de la librería `ggpubr`.
+
+-   Al final de este examen deben utilizar el comando "Knit" para generar un archivo HTML.
+
+## PREGUNTA 1: GLM, GAM y Regresión Bayesiana [3 PUNTOS]
+
+```{r}
+library(ggpubr)
+ggarrange
+```
+
+En el archivo `"glm.xlsx"` tiene tres datos:
+
+-   aedes: insecticidas utilizados para controlar el número de mosquitos en un experimento. Cada vez que se repite la aplicación del insecticida parece disminuir la cantidad de zancudos vivos.
+
+-   leishmania: en una infección con leishmania cuando se analiza el tejido qué sucede con la concentración de algunas células y si están o no afectadas.
+
+-   disease: cómo la edad afecta a diferentes características dicotómicas.
+
+### Realice los siguientes análisis:
+
+## Aedes: GLM
+
+```{r}
+library(readxl)
+aedes <- read_excel("aedes.xlsx")
+View(aedes)
+```
+
+### Análisis exploratorio
+
+```{r}
+library(MASS); library(ggplot2)
+head(aedes, 2)
+summary(aedes) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = aedes, aes(x = repetition, y = aedes, 
+                          col = agrochem)) +
+  geom_point()
+```
+
+Se puede observar que los datos están dispersos, y que aprentemente no siguen un comportamienmiento de regresión lineal. La media para aedes es de 523.5 y para las repeticiones de los agroquímicos es de 3.5. Sin embargo, el número de zancudos muertos aumenta según la repitación de del agroquímico.
+
+#### Planteamiento de hipótesis.
+
+Por lo que se plantea la siguiente hipotesis:
+
+$H_0$: La repeticiones de aplicación de agroquímicos no tiene un efecto sobre la población de zancudos
+
+$H_1$: La repeticiones de aplicación de agroquímicos disminuye la población de zancudos
+
+#### Análisis de regresión
+
+```{r}
+h01 <- lm(repetition ~ aedes, data = aedes)
+summary(h01)
+plot(h01)
+```
+
+Se puede observar que los valores residuales de la población de zancudos y de las repeticiones siguen un comportamiento creciente. Sin embargo, las observaciones 10, 30, 210, 260 son datos atípicos comprobados por la distancia de cook.
+
+#### Planteamiento del modelo.
+
+```{r}
+boxplot(aedes$repetition ~ aedes$aedes, ylab = "Población de Zancudos muertos", xlab = "Repetición", fill = aedes$agrochem)
+plot(aedes$repetition, aedes$aedes, ylab = "Repeticion de Agroquimicos", xlab = "Población de Zancudos")
+reg <- lm(aedes$repetition ~ aedes$aedes)
+abline(reg)
+```
+
+La regresión lineal es constante por lo que no indica mayor información al análisis del efecto de los agroquímicos en la población de los zancudos
+
+### Familia Possion:
+
+```{r}
+glm1<- glm(aedes ~ repetition, data = aedes, family = poisson)
+# Gráfico de dispersión con línea de ajuste
+plot(aedes$repetition, aedes$aedes, main = "GLM FAMILIA POISSION", xlab = "Repeticiones de Agroquímicos", ylab = "Población de Zancudos Muertos")
+x_seq <- seq(min(aedes$repetition), max(aedes$repetition), length.out = 100)
+pred_counts <- predict(glm1, newdata = data.frame(repetition = x_seq), type = "response")
+lines(x_seq, pred_counts, col = "purple", lwd = 2)
+```
+
+Cómo se muestra en el modelo, lo datos siguen un comportamiento casi constante, por lo que es probable que los datos anteriormente mencionados juegen un papel fundamental al modelar. Sin embargo, si muestra que mientras mayor sea la repetición de los agroquímicos mayor es el número de zancudos muertos.
+
+### Validación del Modelo
+
+```{r}
+print(AIC(reg))
+print(glm1$aic)
+```
+
+El AIC para el modelo de regresión es menor que el AIC del modelo glm perteneciente a la familia possion. Por lo que, el modelo lineal de rgresión está mejor ajustado a los valores e indica que es el que mejor describe los datos y mejor puede predecir su comportamiento
+
+## Disease: GLMs binomiales
+
+```{r}
+library(readxl)
+disease <- read_excel("disease.xlsx")
+View(disease)
+```
+
+### Análisis exploratorio
+
+```{r}
+library(MASS); library(ggplot2)
+head(disease, 2)
+summary(disease) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = disease, aes(x = age, y = recover, 
+                          col = treatment)) +
+  geom_point()
+
+```
+
+La media para la recuperación es de 0 y para la edad es de 20.
+
+### Planteamiento de Hipotesis:
+
+Por lo que se plantea lo siguiente:
+
+$H_0$: La edad no influe en la recuperación de los pacientes.
+
+$H_1:$ La edad tiene un efecto en la recuperación de los pacientes
+
+### Análisis de Regresión:
+
+```{r}
+h02 <- lm(age ~ recover, data = disease)
+summary(h02)
+plot(h02)
+```
+
+Los residuales indican siguen un comportamiento creciente, es decir que mientras aumenta la edad el tiempo de recuperación aumenta. Sin embargo, los quantiles teoricos de manera gráfica indican que la mayoría de los datos se ajustan a la regresión. Según la distancia de Cook, los valores atípicos son 44, 51 y 52.
+
+### Plantamiento de Modelo
+
+```{r}
+boxplot(disease$recover ~ disease$age, ylab = "Recuperación de los Pacientes", xlab = "Edad", fill = disease$treatment)
+plot(disease$age, disease$recover, ylab = "Recuperación de los pacientes", xlab = "Edad")
+reg1 <- lm(disease$age ~ disease$recover)
+abline(reg1)
+```
+
+Mientras aumenta la edad, el tiempo de recu'peración aumenta.
+
+### Familia Binomial:
+
+```{r}
+glm2 <- glm(recover ~ age, data = disease, family = binomial())
+plot(disease$age, disease$recover, main = "GLM FAMILIA BINOMIAL", xlab = "Edad", ylab = "Probabilidad de Recuperación", pch = 16)
+x_seq <- seq(min(disease$age), max(disease$age), length.out = 100)
+pred_probs <- predict(glm2, newdata = data.frame(age = x_seq), type = "response")
+lines(x_seq, pred_probs, col = "purple", lwd = 2)
+
+```
+
+Se comprueba que la edad tiene un efecto en el tiempo de recuperación de los pacientes, debido a que necesitan más tiempo para reccuperarse por completo.
+
+### Validación del Modelo:
+
+```{r}
+print(AIC(reg1))
+print(glm2$aic)
+```
+
+Se comprueba que el modelos que mejor se ajusta a los datos y los describe es el modelo GLM perteneciente a la familia binomial al tener un valor de 118.91 en el AIC.
+
+## Leishmania: glm bayesiano
+
+### Análisis exploratorio
+
+```{r}
+library(readxl)
+leishmania <- read_excel("leishmania.xlsx")
+View(leishmania)
+library(MASS); library(ggplot2)
+head(leishmania, 2)
+summary(leishmania) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = leishmania, aes(x = temperature, y = percent_affect, 
+                          col = recupera)) +
+  geom_point()
+```
+
+Aparentemente el gráfico muestra que los datos siguen un comportamiento de regresión lineal apesar de que están dispersos. La proporcón de tejidos normales vs tejidos afectados por esta enfermedad parece la misma. La media de tejidos afectados es de 0.65 y para a temperatura es de 0.99
+
+### Plantamiento de Hipotesis:
+
+Por lo que se palneta lo siguiente:
+
+$H_0:$ La temperatura no influye en los tejidos.
+
+$H_1:$ La temperatura afecta en los tejidos, por lo que aumenta los tejidos dañados.
+
+### Análisis de Regresión:
+
+```{r}
+h03 <- lm(temperature ~ percent_affect, data = leishmania)
+summary(h03)
+plot(h03)
+```
+
+Se comprueba que en efecto los datos siguen un comportamiento creciente, los datos no se ajustan del todo a la regresión lineal. Los datos atípicos según la distanciaa de cook 8, 10 y 22.
+
+### Planteamiento del Modelo:
+
+```{r}
+boxplot(leishmania$percent_affect ~ leishmania$temperature, ylab = "Porcentaje de Tejidos afectados", xlab = "Temperatura", fill = disease$treatment)
+plot(leishmania$temperature, leishmania$percent_affect, ylab = "Porcentaje de Tejidos afectados", xlab = "Temperatura")
+reg2 <- lm(leishmania$temperature ~ leishmania$percent_affect)
+abline(reg2)
+```
+
+Los datos nos parecen seguir un comportamiento en especifico, por lo que no se puede aseverar nada.
+
+### Estadística Bayesiana
+
+```{r}
+library(rstan)
+library(rstanarm)
+library(rstantools)
+data_list <- data.frame(percent_affect = leishmania$percent_affect, temperature = leishmania$temperature)
+model_bayesiano <- stan_glm(percent_affect ~ temperature, data = data_list, family = gaussian())
+new_data <- data.frame(temperature = seq(min(leishmania$temperature), max(leishmania$temperature), length.out = 100))
+predicted_values <- predict(model_bayesiano, newdata = new_data, type = "response")
+plot(leishmania$temperature, leishmania$percent_affect, 
+     main = "Regresión Ajustada (Estadística Bayesiana)",
+     xlab = "Temperatura", ylab = "Porcentaje de Afectación",
+     col = "blue", pch = 16)
+lines(new_data$temperature, predicted_values, col = "red", lwd = 2)
+```
+
+Según el modelo ajustado a a estadística bayesiana indic que mientras más aumenta la tempeeratura, le porcentaje de tejidos aumenta.
+
+### Validación del Modelo
+
+```{r}
+print(AIC(reg2))
+print(model_bayesiano$aic)
+```
+
+El AIC para la regresión es de 146.18 por lo que describe mejor los datos.
+
+## **PREGUNTA 2: Series de tiempo [3 PUNTOS]**
+
+En el archivo `"ts.xlsx"` tiene tres datos:
+
+-   quakes: cantidad de eventos de terremotos por cada año.
+
+-   hepatitis: casos de hepatitis por mes entre 2010 y 2017 (acomodar la tabla si es necesario)
+
+-   wildfire: cantidad de eventos de incendios forestales por mes entre 2003 y 2017.
+
+Realizar los siguientes análisis y respectivas interpretaciones:
+
+1.  Análisis exploratorio: autocorrelación y descomposición, análisis estacional.
+
+2.  ARIMA, SARIMA, ETS, NNAR
+
+3.  Validez de los modelos.
+
+4.  Predicción a 20 años o a 24 meses según corresponda.
+
+
+
+## **PREGUNTA 3: Análisis espacial de especies [3 PUNTOS]**
+
+Seleccione una especie de planta y una especie de animal; asimismo, dos tipos de modelos de predicción (glm, gam, rf, ann, otro):
+
+-   Mosquito: *Aedes aegypti*
+
+-   Puma: *Puma concolor*
+
+-   Coati: *Nasua nasua*
+
+-   Tapir: *Tapirus terrestris*
+
+-   Jaguar: *Panthera onca*
+
+-   Palma de cera: *Ceroxylon quindiuense*
+
+-   Ceibo: *Ceiba pentandra*
+
+-   Pasiflora: *Passiflora edulis*
+
+-   Chirimoya: *Anona cherimola*
+
+### TAPIR
+
+#### Carga de datos y Selección del Aerea de Estudio
+
+```{r}
+
+require(pacman)
+pacman::p_load(rnaturalearthdata, extrafont, showtext, rnaturalearth, cptcity, 
+               SSDM, ggspatial, raster, terra, rgbif, tidyverse, sf, sp, 
+               geodata, glue, ggpubr)
+
+g = gc(reset=T)
+rm(list=ls())
+options(scipen = 999, warn = -1)
+```
+
+```{r}
+sps = "Tapirus terrestris"
+occr = occ_data(scientificName = sps, limit = 10e5, hasCoordinate = T, 
+                hasGeospatialIssue = F)
+occr = occr[[2]]
+unique(occr$country) %>%  sort()
+occr = occr %>%  dplyr::filter(country == "Ecuador")
+```
+
+#### Datos biclimáticos
+
+```{r}
+
+wrld = ne_countries(returnclass = "sf", scale = 50)
+ecu1 = geodata::gadm(country = "ECU", level = 1, path = "tmpr")
+
+plot(st_geometry(wrld))
+plot(ecu1)
+points(occr$decimalLongitude, occr$decimalLatitude, pch = 16, col = "blue")
+
+
+bioc = geodata::worldclim_country(country = "ECU", var = "bioc", path = "tmpr")
+bioc = terra::crop(bioc, ecu1) %>% terra::mask(., ecu1)
+names(bioc) = glue("bioc{1:19}")
+
+
+occr = occr %>%  dplyr::select(x = decimalLongitude, y = decimalLatitude)
+vles = terra::extract(bioc, occr[,c("x", "y")])
+occr = cbind(occr[,c("x", "y")], vles[,-1])
+occr = as_tibble(occr)
+occr = mutate(occr, pb = 1)
+
+
+cell = terra::extract(bioc[[1]], occr[,1:2], cells=T)$cell
+duplicated(cell)
+mask = bioc[[1]]*0
+mask[cell] = NA
+back = terra::as.data.frame(mask, xy =T) %>% as_tibble()
+back = sample_n(back, size = nrow(occr)*2, replace = FALSE)
+colnames(back)[3] = "pb"
+back = mutate(back, pb = 0)
+back = cbind(back, terra::extract(bioc, back[,c(1,2)])[,-1])
+back = as_tibble(back)
+
+
+
+```
+
+#### UNION DATOS CLIMATICOS Y MODELO GLM
+
+```{r}
+tble = rbind(occr, back)
+
+# GLM Model
+bioc = stack(bioc)
+tble = as.data.frame(tble)
+
+srdf = modelling(algorithm = "GLM", Env = bioc, Occurrences = tble, Pcol = "pb", 
+                 Xcol = "x", cv.parm = c(0.75, 0.25), 
+                 Ycol = "y", metric = "TSS", select.metric = "AUC")
+plot(srdf@projection)
+plot(srdf@binary)
+srdf@parameters
+srdf@name
+srdf@variable.importance
+as.numeric(srdf@variable.importance) %>% sum()
+
+rstr = srdf@projection
+rstr = terra::rast(rstr)
+rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
+
+# Built the map
+gmap = ggplot() +
+  geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
+  scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
+  geom_sf(data = wrld, fill = NA, col = "grey40", lwd=0.1) +
+  geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
+  coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
+  labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
+  ggtitle(label = "Idoneidad para Tapir. en Ecuador", subtitle = "Modelo GLM") +
+  theme_bw() + 
+  theme(text = element_text(family="georg", color = "grey50"), 
+        legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        panel.border = element_rect(color = "grey80") ) +
+  guides(fill = guide_legend(
+    direction = "horizontal", 
+    keyheight = unit(1.15, units = "mm"), keywidth = unit(1.15, units = "mm"),
+    title.position = "top", title.hjust = 0.5, label.hjust = 0.5, 
+    nrow = 1, byrow = T, reverse = F, label.position = "bottom")) +
+  annotation_scale(location="bl", width_hint =0.5, text_family = "georg", 
+                   text_col = "grey60", text_cex = 0.7 ) +
+  annotation_north_arrow(
+    location= "tr", which_north = "true",
+    pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
+```
+
+Mayor indiviudos número de individuos en la zona amazónica espcielamente en la provincia de Napo y Pastaza. Su idoneidad de habitat es de 0.8 respecto a las dos provincias. La mayor distribución de 1 que representa el 100 se en las pronvinicias del norte de la Amazonía como Napo, Pastaza, Sucumbíos y Orellana.
+
+#### MODELO GAM
+
+```{r}
+# GLM Model
+bioc = stack(bioc)
+tble = as.data.frame(tble)
+
+srdf = modelling(algorithm = "GAM", Env = bioc, Occurrences = tble, Pcol = "pb", 
+                 Xcol = "x", cv.parm = c(0.75, 0.25), 
+                 Ycol = "y", metric = "TSS", select.metric = "AUC")
+plot(srdf@projection)
+plot(srdf@binary)
+srdf@parameters
+srdf@name
+srdf@variable.importance
+as.numeric(srdf@variable.importance) %>% sum()
+
+rstr = srdf@projection
+rstr = terra::rast(rstr)
+rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
+
+# Built the map
+gmap1 = ggplot() +
+  geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
+  scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
+  geom_sf(data = wrld, fill = NA, col = "grey40", lwd=0.1) +
+  geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
+  coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
+  labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
+  ggtitle(label = "Idoneidad para el Tapir sp. en Ecuador", subtitle = "Modelo GAM") +
+  theme_bw() + 
+  theme(text = element_text(family="georg", color = "grey50"), 
+        legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        panel.border = element_rect(color = "grey80") ) +
+  guides(fill = guide_legend(
+    direction = "horizontal", 
+    keyheight = unit(1.15, units = "mm"), keywidth = unit(1.15, units = "mm"),
+    title.position = "top", title.hjust = 0.5, label.hjust = 0.5, 
+    nrow = 1, byrow = T, reverse = F, label.position = "bottom")) +
+  annotation_scale(location="bl", width_hint =0.5, text_family = "georg", 
+                   text_col = "grey60", text_cex = 0.7 ) +
+  annotation_north_arrow(
+    location= "tr", which_north = "true",
+    pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
+```
+
+El modelo GAM indica que la idoneidad de habitat del tapir está en cierto cantones de Napo y Suncmbíos con un valor de 0.8 y 1.
+
+### PASIFLORA
+
+#### Carga de datos 
+
+```{r}
+require(pacman)
+pacman::p_load(rnaturalearthdata, extrafont, showtext, rnaturalearth, cptcity, 
+               SSDM, ggspatial, raster, terra, rgbif, tidyverse, sf, sp, 
+               geodata, glue, ggpubr)
+
+g = gc(reset=T)
+rm(list=ls())
+options(scipen = 999, warn = -1)
+sps = "Passiflora edulis"
+occr = occ_data(scientificName = sps, limit = 10e5, hasCoordinate = T, 
+                hasGeospatialIssue = F)
+occr = occr[[2]]
+unique(occr$country) %>%  sort()
+occr = occr %>%  dplyr::filter(country == "Ecuador")
+
+```
+
+#### Datos Bioclimaticos
+
+```{r}
+wrld = ne_countries(returnclass = "sf", scale = 50)
+ecu1 = geodata::gadm(country = "ECU", level = 1, path = "tmpr")
+
+plot(st_geometry(wrld))
+plot(ecu1)
+points(occr$decimalLongitude, occr$decimalLatitude, pch = 16, col = "blue")
+
+
+bioc = geodata::worldclim_country(country = "ECU", var = "bioc", path = "tmpr")
+bioc = terra::crop(bioc, ecu1) %>% terra::mask(., ecu1)
+names(bioc) = glue("bioc{1:19}")
+
+
+occr = occr %>%  dplyr::select(x = decimalLongitude, y = decimalLatitude)
+vles = terra::extract(bioc, occr[,c("x", "y")])
+occr = cbind(occr[,c("x", "y")], vles[,-1])
+occr = as_tibble(occr)
+occr = mutate(occr, pb = 1)
+
+
+cell = terra::extract(bioc[[1]], occr[,1:2], cells=T)$cell
+duplicated(cell)
+mask = bioc[[1]]*0
+mask[cell] = NA
+back = terra::as.data.frame(mask, xy =T) %>% as_tibble()
+back = sample_n(back, size = nrow(occr)*2, replace = FALSE)
+colnames(back)[3] = "pb"
+back = mutate(back, pb = 0)
+back = cbind(back, terra::extract(bioc, back[,c(1,2)])[,-1])
+back = as_tibble(back)
+
+
+
+```
+
+Passiflora esta mayormente distribuida hacia la costa y la sierra en Ecuador.
+
+#### Unión datos bioclimáticos y modelo glm
+
+```{r}
+tble = rbind(occr, back)
+
+# GLM Model
+bioc = stack(bioc)
+tble = as.data.frame(tble)
+
+srdf = modelling(algorithm = "GLM", Env = bioc, Occurrences = tble, Pcol = "pb", 
+                 Xcol = "x", cv.parm = c(0.75, 0.25), 
+                 Ycol = "y", metric = "TSS", select.metric = "AUC")
+plot(srdf@projection)
+plot(srdf@binary)
+srdf@parameters
+srdf@name
+srdf@variable.importance
+as.numeric(srdf@variable.importance) %>% sum()
+
+rstr = srdf@projection
+rstr = terra::rast(rstr)
+rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
+
+# Built the map
+gmap = ggplot() +
+  geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
+  scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
+  geom_sf(data = wrld, fill = NA, col = "grey40", lwd=0.1) +
+  geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
+  coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
+  labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
+  ggtitle(label = "Idoneidad para habitat Passiflore en Ecuador", subtitle = "Modelo GLM") +
+  theme_bw() + 
+  theme(text = element_text(family="georg", color = "grey50"), 
+        legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        panel.border = element_rect(color = "grey80") ) +
+  guides(fill = guide_legend(
+    direction = "horizontal", 
+    keyheight = unit(1.15, units = "mm"), keywidth = unit(1.15, units = "mm"),
+    title.position = "top", title.hjust = 0.5, label.hjust = 0.5, 
+    nrow = 1, byrow = T, reverse = F, label.position = "bottom")) +
+  annotation_scale(location="bl", width_hint =0.5, text_family = "georg", 
+                   text_col = "grey60", text_cex = 0.7 ) +
+  annotation_north_arrow(
+    location= "tr", which_north = "true",
+    pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
+
+```
+
+La proyección para Passiflora es de 0.8 en las provincias de Guayas y ciertas zonas de Galápagos. Con 0.6 las demás zonas de Galápagos, Manabí, Esmeraldas , Zamora y Azuay. En estas zons en donde su idoneidas según el modelo es de 1.
+
+#### Modelo GAM
+
+```{r}
+# GLM Model
+bioc = stack(bioc)
+tble = as.data.frame(tble)
+
+srdf = modelling(algorithm = "GAM", Env = bioc, Occurrences = tble, Pcol = "pb", 
+                 Xcol = "x", cv.parm = c(0.75, 0.25), 
+                 Ycol = "y", metric = "TSS", select.metric = "AUC")
+plot(srdf@projection)
+plot(srdf@binary)
+srdf@parameters
+srdf@name
+srdf@variable.importance
+as.numeric(srdf@variable.importance) %>% sum()
+
+rstr = srdf@projection
+rstr = terra::rast(rstr)
+rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
+
+# Built the map
+gmap1 = ggplot() +
+  geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
+  scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
+  geom_sf(data = wrld, fill = NA, col = "grey40", lwd=0.1) +
+  geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
+  coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
+  labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
+  ggtitle(label = "Idoneidad de hábitat de Passiflora en Ecuador", subtitle = "Modelo GAM") +
+  theme_bw() + 
+  theme(text = element_text(family="georg", color = "grey50"), 
+        legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        panel.border = element_rect(color = "grey80") ) +
+  guides(fill = guide_legend(
+    direction = "horizontal", 
+    keyheight = unit(1.15, units = "mm"), keywidth = unit(1.15, units = "mm"),
+    title.position = "top", title.hjust = 0.5, label.hjust = 0.5, 
+    nrow = 1, byrow = T, reverse = F, label.position = "bottom")) +
+  annotation_scale(location="bl", width_hint =0.5, text_family = "georg", 
+                   text_col = "grey60", text_cex = 0.7 ) +
+  annotation_north_arrow(
+    location= "tr", which_north = "true",
+    pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
+```
+
+La proyección para este modelo es de 0.5 para la ocurrencia de Passiflora, se ubica en las ciertas zonas de las provincias de Guayas, Galápagos, Azuay, Zamora, Manabí , Santo Domingo y Pichincha. Su idoneidad es de 1 en las provincias de Guayas, Galápagos, Esmeraldas, Azuay, Zamora, Napo, Santo Domingo y Pihchincha.

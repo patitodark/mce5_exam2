@@ -58,7 +58,7 @@ En el archivo `"glm.xlsx"` tiene tres datos:
 
 ### Realice los siguientes análisis:
 
-### aedes: GLM Poisson
+## Aedes: GLM
 
 ```{r}
 library(readxl)
@@ -66,26 +66,28 @@ aedes <- read_excel("aedes.xlsx")
 View(aedes)
 ```
 
-### 
-Análisis exploratorio
+### Análisis exploratorio
 
 ```{r}
 library(MASS); library(ggplot2)
 head(aedes, 2)
-summary(aedes)
-plot(aedes$aedes, aedes$repetition)+
-  abline( x= aedes$aedes, y=aedes$repetition)
+summary(aedes) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = aedes, aes(x = repetition, y = aedes, 
+                          col = agrochem)) +
+  geom_point()
 ```
 
-Se puede observar que los datos están dispersos, y que aprentemente no siguenun comprtamiento de regresión lineal. La media para aedes es de 523.5 y para las repeticiones es de 3.5
+Se puede observar que los datos están dispersos, y que aprentemente no siguen un comportamienmiento de regresión lineal. La media para aedes es de 523.5 y para las repeticiones de los agroquímicos es de 3.5. Sin embargo, el número de zancudos muertos aumenta según la repitación de del agroquímico.
 
 #### Planteamiento de hipótesis.
 
 Por lo que se plantea la siguiente hipotesis:
 
-$H_0$: La repeticiones de aplicación de agroquímicos no tiene un efecto sobre la población de mosquitos
+$H_0$: La repeticiones de aplicación de agroquímicos no tiene un efecto sobre la población de zancudos
 
-$H_1$: La repeticiones de aplicación de agroquímicos disminuye la población de mosquitos
+$H_1$: La repeticiones de aplicación de agroquímicos disminuye la población de zancudos
 
 #### Análisis de regresión
 
@@ -95,28 +97,192 @@ summary(h01)
 plot(h01)
 ```
 
-Se puede observar que los valores residuales de la población de moquitos y de las repeticiones siguen un omportamiento creciente. Simbargo las observaciones 10, 30, 210, 260 son datos atípicos comprobados por la distancia de cook.
+Se puede observar que los valores residuales de la población de zancudos y de las repeticiones siguen un comportamiento creciente. Sin embargo, las observaciones 10, 30, 210, 260 son datos atípicos comprobados por la distancia de cook.
 
 #### Planteamiento del modelo.
 
 ```{r}
-boxplot(aedes$repetition ~ aedes$aedes, ylab = "Repetición de Agroquímicos", xlab = "Población de Mosquitos")
-
+boxplot(aedes$repetition ~ aedes$aedes, ylab = "Población de Zancudos muertos", xlab = "Repetición", fill = aedes$agrochem)
+plot(aedes$repetition, aedes$aedes, ylab = "Repeticion de Agroquimicos", xlab = "Población de Zancudos")
+reg <- lm(aedes$repetition ~ aedes$aedes)
+abline(reg)
 ```
+
+La regresión lineal es constante por lo que no indica mayor información al análisis del efecto de los agroquímicos en la población de los zancudos
+
+### Familia Possion:
 
 ```{r}
-plot(aedes$repetition, aedes$aedes, ylab = "Repeticion de Agroquimicos", xlab = "Población de Mosquitos")
-reg <- lm(aedes$repetition ~ aedes$aedes)
+glm1<- glm(aedes ~ repetition, data = aedes, family = poisson)
+# Gráfico de dispersión con línea de ajuste
+plot(aedes$repetition, aedes$aedes, main = "GLM FAMILIA POISSION", xlab = "Repeticiones de Agroquímicos", ylab = "Población de Zancudos Muertos")
+x_seq <- seq(min(aedes$repetition), max(aedes$repetition), length.out = 100)
+pred_counts <- predict(glm1, newdata = data.frame(repetition = x_seq), type = "response")
+lines(x_seq, pred_counts, col = "purple", lwd = 2)
+```
+
+Cómo se muestra en el modelo, lo datos siguen un comportamiento casi constante, por lo que es probable que los datos anteriormente mencionados juegen un papel fundamental al modelar. Sin embargo, si muestra que mientras mayor sea la repetición de los agroquímicos mayor es el número de zancudos muertos.
+
+### Validación del Modelo
+
+```{r}
+print(AIC(reg))
+print(glm1$aic)
+```
+
+El AIC para el modelo de regresión es menor que el AIC del modelo glm perteneciente a la familia possion. Por lo que, el modelo lineal de rgresión está mejor ajustado a los valores e indica que es el que mejor describe los datos y mejor puede predecir su comportamiento
+
+## Disease: GLMs binomiales
+
+```{r}
+library(readxl)
+disease <- read_excel("disease.xlsx")
+View(disease)
+```
+
+### Análisis exploratorio
+
+```{r}
+library(MASS); library(ggplot2)
+head(disease, 2)
+summary(disease) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = disease, aes(x = age, y = recover, 
+                          col = treatment)) +
+  geom_point()
 
 ```
 
-#### disease: GLMs binomiales
+La media para la recuperación es de 0 y para la edad es de 20.
 
-#### 
+### Planteamiento de Hipotesis:
 
-leishmania: glm bayesiano
+Por lo que se plantea lo siguiente:
 
-Realizar los siguientes análisis y respectivas interpretaciones:
+$H_0$: La edad no influe en la recuperación de los pacientes.
+
+$H_1:$  La edad tiene un efecto en la recuperación de los pacientes
+
+### Análisis de Regresión:
+
+```{r}
+h02 <- lm(age ~ recover, data = disease)
+summary(h02)
+plot(h02)
+```
+
+Los residuales indican siguen un comportamiento creciente, es decir que mientras aumenta la edad el tiempo de recuperación aumenta. Sin embargo, los quantiles teoricos de manera gráfica indican que la mayoría de los datos se ajustan a la regresión. Según la distancia de Cook, los valores atípicos son 44, 51 y 52.
+
+### Plantamiento de Modelo
+
+```{r}
+boxplot(disease$recover ~ disease$age, ylab = "Recuperación de los Pacientes", xlab = "Edad", fill = disease$treatment)
+plot(disease$age, disease$recover, ylab = "Recuperación de los pacientes", xlab = "Edad")
+reg1 <- lm(disease$age ~ disease$recover)
+abline(reg1)
+```
+
+Mientras aumenta la edad, el tiempo de recu'peración aumenta.
+
+### Familia Binomial:
+
+```{r}
+glm2 <- glm(recover ~ age, data = disease, family = binomial())
+plot(disease$age, disease$recover, main = "GLM FAMILIA BINOMIAL", xlab = "Edad", ylab = "Probabilidad de Recuperación", pch = 16)
+x_seq <- seq(min(disease$age), max(disease$age), length.out = 100)
+pred_probs <- predict(glm2, newdata = data.frame(age = x_seq), type = "response")
+lines(x_seq, pred_probs, col = "purple", lwd = 2)
+
+```
+
+Se comprueba que la edad tiene un efecto en el tiempo de recuperación de los pacientes, debido a que necesitan más tiempo para reccuperarse por completo.
+
+### Validación del Modelo:
+
+```{r}
+print(AIC(reg1))
+print(glm2$aic)
+```
+
+Se comprueba que el modelos que mejor se ajusta a los datos y los describe es el modelo GLM perteneciente a la familia binomial al tener un valor de 118.91 en el AIC.
+
+## Leishmania: glm bayesiano
+
+### Análisis exploratorio
+
+```{r}
+library(readxl)
+leishmania <- read_excel("leishmania.xlsx")
+View(leishmania)
+library(MASS); library(ggplot2)
+head(leishmania, 2)
+summary(leishmania) # ESTADÍSTICA DESCRIPTIVA
+# VISUALIZACIÓN PRELIMINAR
+library(ggplot2)
+ggplot(data = leishmania, aes(x = temperature, y = percent_affect, 
+                          col = recupera)) +
+  geom_point()
+```
+
+Aparentemente el gráfico muestra que los datos siguen un comportamiento de regresión lineal apesar de que están dispersos. La proporcón de tejidos normales vs tejidos afectados por esta enfermedad parece la misma. La media de tejidos afectados es de 0.65 y para a temperatura es de 0.99
+
+### Plantamiento de Hipotesis:
+
+Por lo que se palneta lo siguiente:
+
+$H_0:$ La temperatura no influye en los tejidos.
+
+$H_1:$ La temperatura afecta en los tejidos, por lo que aumenta los tejidos dañados.
+
+### Análisis de Regresión:
+
+```{r}
+h03 <- lm(temperature ~ percent_affect, data = leishmania)
+summary(h03)
+plot(h03)
+```
+
+Se comprueba que en efecto los datos siguen un comportamiento creciente, los datos no se ajustan del todo a la regresión lineal. Los datos atípicos según la distanciaa de cook 8, 10 y 22.
+
+### Planteamiento del Modelo:
+
+```{r}
+boxplot(leishmania$percent_affect ~ leishmania$temperature, ylab = "Porcentaje de Tejidos afectados", xlab = "Temperatura", fill = disease$treatment)
+plot(leishmania$temperature, leishmania$percent_affect, ylab = "Porcentaje de Tejidos afectados", xlab = "Temperatura")
+reg2 <- lm(leishmania$temperature ~ leishmania$percent_affect)
+abline(reg2)
+```
+
+Los datos nos parecen seguir un comportamiento en especifico, por lo que no se puede aseverar nada.
+
+### Estadística Bayesiana
+
+```{r}
+library(rstan)
+library(rstanarm)
+library(rstantools)
+data_list <- data.frame(percent_affect = leishmania$percent_affect, temperature = leishmania$temperature)
+model_bayesiano <- stan_glm(percent_affect ~ temperature, data = data_list, family = gaussian())
+new_data <- data.frame(temperature = seq(min(leishmania$temperature), max(leishmania$temperature), length.out = 100))
+predicted_values <- predict(model_bayesiano, newdata = new_data, type = "response")
+plot(leishmania$temperature, leishmania$percent_affect, 
+     main = "Regresión Ajustada (Estadística Bayesiana)",
+     xlab = "Temperatura", ylab = "Porcentaje de Afectación",
+     col = "blue", pch = 16)
+lines(new_data$temperature, predicted_values, col = "red", lwd = 2)
+```
+
+Según el modelo ajustado a a estadística bayesiana indic que mientras más aumenta la tempeeratura, le porcentaje de tejidos aumenta.
+
+### Validación del Modelo
+
+```{r}
+print(AIC(reg2))
+print(model_bayesiano$aic)
+```
+
+El AIC para la regresión es de 146.18 por lo que describe mejor los datos.
 
 ## **PREGUNTA 2: Series de tiempo [3 PUNTOS]**
 
@@ -160,9 +326,9 @@ Seleccione una especie de planta y una especie de animal; asimismo, dos tipos de
 
 -   Chirimoya: *Anona cherimola*
 
-#### Tapir
+### TAPIR
 
-#### Carga de datos  y Selección del Aerea de Estudio 
+#### Carga de datos y Selección del Aerea de Estudio
 
 ```{r}
 
@@ -185,7 +351,7 @@ unique(occr$country) %>%  sort()
 occr = occr %>%  dplyr::filter(country == "Ecuador")
 ```
 
-### Contstrucción del Modelo con GLM 
+#### Contstrucción del Modelo con GLM
 
 ```{r}
 
@@ -229,7 +395,7 @@ back = as_tibble(back)
 ```{r}
 tble = rbind(occr, back)
 
-# Random Forest Model
+# GLM Model
 bioc = stack(bioc)
 tble = as.data.frame(tble)
 
@@ -255,7 +421,7 @@ gmap = ggplot() +
   geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
   coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
   labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
-  ggtitle(label = "Idoneidad para Hyloscirtus sp. en Ecuador", subtitle = "Modelo GLM") +
+  ggtitle(label = "Idoneidad para Tapir. en Ecuador", subtitle = "Modelo GLM") +
   theme_bw() + 
   theme(text = element_text(family="georg", color = "grey50"), 
         legend.position = "bottom", 
@@ -274,5 +440,58 @@ gmap = ggplot() +
     pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
     style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
 ```
-Mayor indiviudos número  de individuos en la zona amazónica espcielamente en la provincia de Napo y Pastaza. Su idoneidad de habitat es de 0.8 respecto a las dos provincias. 
 
+Mayor indiviudos número de individuos en la zona amazónica espcielamente en la provincia de Napo y Pastaza. Su idoneidad de habitat es de 0.8 respecto a las dos provincias. La mayor distribución de 1 que representa el 100 se en las pronvinicias del norte de la Amazonía como Napo, Pastaza, Sucumbíos y Orellana.
+
+#### MODELO GAM
+
+```{r}
+# GLM Model
+bioc = stack(bioc)
+tble = as.data.frame(tble)
+
+srdf = modelling(algorithm = "GAM", Env = bioc, Occurrences = tble, Pcol = "pb", 
+                 Xcol = "x", cv.parm = c(0.75, 0.25), 
+                 Ycol = "y", metric = "TSS", select.metric = "AUC")
+plot(srdf@projection)
+plot(srdf@binary)
+srdf@parameters
+srdf@name
+srdf@variable.importance
+as.numeric(srdf@variable.importance) %>% sum()
+
+rstr = srdf@projection
+rstr = terra::rast(rstr)
+rslt = terra::as.data.frame(rstr, xy = T) %>%  as_tibble()
+
+# Built the map
+gmap1 = ggplot() +
+  geom_tile(data = rslt, aes(x = x, y = y, fill = Projection)) +
+  scale_fill_gradientn(colors = cpt(pal = "mpl_inferno", n=10, rev = TRUE)) +
+  geom_sf(data = wrld, fill = NA, col = "grey40", lwd=0.1) +
+  geom_sf(data = st_as_sf(ecu1), fill = NA, col = "grey40", lwd=0.3) +
+  coord_sf(xlim = ext(ecu1)[1:2], ylim = ext(ecu1)[3:4]) +
+  labs(x = "Longitud", y = "Latitud", fill = "Puntaje de Idoneidad") +
+  ggtitle(label = "Idoneidad para el Tapir sp. en Ecuador", subtitle = "Modelo GAM") +
+  theme_bw() + 
+  theme(text = element_text(family="georg", color = "grey50"), 
+        legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", color ="grey30"),
+        panel.border = element_rect(color = "grey80") ) +
+  guides(fill = guide_legend(
+    direction = "horizontal", 
+    keyheight = unit(1.15, units = "mm"), keywidth = unit(1.15, units = "mm"),
+    title.position = "top", title.hjust = 0.5, label.hjust = 0.5, 
+    nrow = 1, byrow = T, reverse = F, label.position = "bottom")) +
+  annotation_scale(location="bl", width_hint =0.5, text_family = "georg", 
+                   text_col = "grey60", text_cex = 0.7 ) +
+  annotation_north_arrow(
+    location= "tr", which_north = "true",
+    pad_x = unit(0.1, "in"), pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering(text_family = "georg", text_col = "grey40"))
+```
+
+El modelo GAM indica que la idoneidad de habitat del tapir está en cierto cantones de Napo y Suncmbíos con un valor de 0.8 y 1.
+
+### PASIFLORA
